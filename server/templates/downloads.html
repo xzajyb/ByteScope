@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下载的文件 - {{ client_info.get('hostname', '未知主机') }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .client-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .client-info p {
+            margin: 5px 0;
+        }
+        .file-item {
+            transition: background-color 0.3s;
+        }
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        .file-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ client_info.get('hostname', '未知主机') }} - 下载的文件</h1>
+            <a href="/client/{{ client_id }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回客户端详情
+            </a>
+        </div>
+
+        <div class="client-info mb-4">
+            <p><strong>用户名:</strong> {{ client_info.get('username', '未知') }}</p>
+            <p><strong>IP地址:</strong> {{ client_info.get('ip', '未知') }}</p>
+            <p><strong>最后活动:</strong> {{ client_info.get('last_seen', '未知') }}</p>
+            <p><strong>客户端ID:</strong> {{ client_id }}</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">下载的文件列表</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+            </div>
+            <div class="card-body">
+                {% if files %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>文件名</th>
+                                    <th>大小</th>
+                                    <th>修改时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in files %}
+                                <tr class="file-item">
+                                    <td>
+                                        <i class="bi bi-file-earmark file-icon"></i>
+                                        {{ file.name }}
+                                    </td>
+                                    <td>{{ file.size|filesizeformat }}</td>
+                                    <td>{{ file.modified.replace('T', ' ').split('.')[0] }}</td>
+                                    <td>
+                                        <a href="/uploads/{{ file.path }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                            <i class="bi bi-download"></i> 下载
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        暂无下载的文件
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

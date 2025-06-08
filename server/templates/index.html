@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ByteScope字节窥探 - 远程监控系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            position: relative;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #212529;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        
+        .status-online {
+            background-color: #28a745;
+        }
+        
+        .status-offline {
+            background-color: #dc3545;
+        }
+        
+        /* 美化卡片样式 */
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+            transition: all 0.3s ease;
+        }
+        
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+            font-weight: 500;
+        }
+        
+        .card-footer {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        
+        /* 美化按钮 */
+        .btn-outline-primary {
+            border-color: #0d6efd;
+            color: #0d6efd;
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+        
+        .btn-outline-secondary {
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        /* 美化表格 */
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            background-color: rgba(0, 0, 0, 0.03);
+            border-bottom: 1px solid #dee2e6;
+            width: 30%;
+        }
+        
+        /* 自定义按钮组 */
+        .btn-group-custom {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Logo样式 */
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo {
+            height: 40px;
+            margin-right: 15px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0d6efd;
+            margin: 0;
+        }
+        
+        .logo-text span {
+            color: #212529;
+            font-weight: normal;
+        }
+        
+        /* 法律声明悬浮窗样式 */
+        .legal-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-top: 5px solid #dc3545;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .legal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .legal-header h5 {
+            margin: 0;
+            color: #dc3545;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .legal-header i {
+            margin-right: 10px;
+            color: #dc3545;
+            font-size: 1.2rem;
+        }
+        
+        .legal-section {
+            margin-bottom: 10px;
+        }
+        
+        .legal-section h6 {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #444;
+            font-size: 0.85rem;
+        }
+        
+        .legal-section p, .legal-section li {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .legal-section ul, .legal-section ol {
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .legal-footer {
+            font-size: 0.75rem;
+            color: #888;
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="logo-container">
+                <img src="/static/images/bytescope_logo.png" alt="ByteScope Logo" class="logo">
+                <h1 class="logo-text">Byte<span>Scope</span> <small class="text-muted">字节窥探</small></h1>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary me-2" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+                <a href="/config_management" class="btn btn-outline-secondary">
+                    <i class="bi bi-gear"></i> 配置管理
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            {% if clients %}
+                {% for client_id, client_info in clients.items() %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card client-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                {% set last_seen = client_info.get('last_seen', '') %}
+                                {% set current_time = now() %}
+                                {% set time_diff = get_time_diff(last_seen, current_time) if last_seen else 9999 %}
+                                
+                                {% if time_diff < 300 %}
+                                <span class="status-indicator status-online" title="在线"></span>
+                                {% else %}
+                                <span class="status-indicator status-offline" title="离线"></span>
+                                {% endif %}
+                                {{ client_info.get('hostname', '未知主机') }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>用户名:</th>
+                                    <td>{{ client_info.get('username', '未知') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>IP地址:</th>
+                                    <td>{{ client_info.get('ip', '未知') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>最后活动:</th>
+                                    <td>
+                                        {% if last_seen %}
+                                            {{ format_time(last_seen) }}
+                                            <span class="text-muted">({{ format_time_ago(time_diff) }})</span>
+                                        {% else %}
+                                            未知
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>客户端ID:</th>
+                                    <td class="text-truncate" style="max-width: 200px;" title="{{ client_id }}">
+                                        {{ client_id }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between">
+                                <a href="/client/{{ client_id }}" class="btn btn-primary">
+                                    <i class="bi bi-info-circle"></i> 查看详情
+                                </a>
+                                <a href="/keylog/{{ client_id }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-keyboard"></i> 键盘记录
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center p-5">
+                        <h4>暂无客户端连接</h4>
+                        <p class="mb-0">等待客户端连接后将在此显示</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 法律声明悬浮窗 -->
+    <div class="legal-widget">
+        <div class="legal-header">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <h5>法律声明与使用须知</h5>
+        </div>
+        
+        <div class="legal-section">
+            <h6>使用范围</h6>
+            <p>本软件仅限于以下场景合法使用：</p>
+            <ul>
+                <li>家庭安全监控与管理</li>
+                <li>已获得合法授权的设备监控</li>
+                <li>家长对未成年子女的合法监护</li>
+                <li>企业内部经明确告知员工的合规管理</li>
+            </ul>
+        </div>
+        
+        <div class="legal-section">
+            <h6>严禁行为</h6>
+            <p>严禁将本软件用于以下行为：</p>
+            <ol>
+                <li>未经授权监控、入侵他人设备或网络</li>
+                <li>非法窃取、收集他人个人信息</li>
+                <li>侵犯他人隐私权、通信自由等权益</li>
+                <li>窃听、截取他人通讯内容</li>
+                <li>从事网络攻击、数据窃取等违法活动</li>
+                <li>其他违反法律法规的行为</li>
+            </ol>
+        </div>
+        
+        <div class="legal-footer">
+            <p>违规使用将承担全部法律责任</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

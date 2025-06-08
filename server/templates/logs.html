@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户端日志 - {{ client_info.get('hostname', '未知主机') }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        h1 {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .client-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .client-info p {
+            margin: 5px 0;
+        }
+        .log-container {
+            height: 600px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-entry:hover {
+            background: #e9ecef;
+        }
+        .btn-toolbar {
+            margin-bottom: 15px;
+        }
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+        .highlight {
+            background-color: #ffeaa7;
+            animation: flash 1s linear;
+        }
+        @keyframes flash {
+            0% { background-color: #fdcb6e; }
+            100% { background-color: #ffeaa7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ client_info.get('hostname', '未知主机') }} - 实时日志</h1>
+            <a href="/client/{{ client_id }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回客户端详情
+            </a>
+        </div>
+
+        <div class="client-info mb-4">
+            <p><strong>用户名:</strong> {{ client_info.get('username', '未知') }}</p>
+            <p><strong>IP地址:</strong> {{ client_info.get('ip', '未知') }}</p>
+            <p><strong>最后活动:</strong> {{ client_info.get('last_seen', '未知') }}</p>
+            <p><strong>客户端ID:</strong> {{ client_id }}</p>
+        </div>
+
+        <div class="btn-toolbar">
+            <button class="btn btn-sm btn-outline-primary me-2" onclick="loadLogHistory()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新日志
+            </button>
+            <button class="btn btn-sm btn-outline-secondary me-2" onclick="clearLogDisplay()">
+                <i class="bi bi-trash"></i> 清空显示
+            </button>
+            <div class="form-check form-switch ms-2">
+                <input class="form-check-input" type="checkbox" id="autoScrollToggle" checked>
+                <label class="form-check-label" for="autoScrollToggle">自动滚动</label>
+            </div>
+            <div class="form-check form-switch ms-3">
+                <input class="form-check-input" type="checkbox" id="realtimeToggle" checked>
+                <label class="form-check-label" for="realtimeToggle">实时更新</label>
+            </div>
+        </div>
+
+        <div class="log-container" id="logContainer"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const logContainer = document.getElementById('logContainer');
+        const autoScrollToggle = document.getElementById('autoScrollToggle');
+        const realtimeToggle = document.getElementById('realtimeToggle');
+        
+        // 加载历史日志
+        function loadLogHistory() {
+            fetch(`/api/log_history/{{ client_id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs && data.logs.length > 0) {
+                        clearLogDisplay();
+                        data.logs.forEach(log => {
+                            appendLogEntry(log, false);
+                        });
+                        scrollToBottom();
+                    } else {
+                        appendLogEntry("暂无历史日志...", false);
+                    }
+                })
+                .catch(error => {
+                    console.error("加载日志历史失败:", error);
+                    appendLogEntry(`加载日志历史失败: ${error.message}`, false);
+                });
+        }
+        
+        // 添加日志条目
+        function appendLogEntry(logEntry, highlight = false) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            if (highlight) {
+                entry.classList.add('highlight');
+            }
+            entry.textContent = logEntry;
+            logContainer.appendChild(entry);
+            
+            // 如果启用了自动滚动，则滚动到底部
+            if (autoScrollToggle.checked) {
+                scrollToBottom();
+            }
+            
+            // 限制显示的日志数量
+            const maxEntries = 1000;
+            while (logContainer.children.length > maxEntries) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        // 滚动到底部
+        function scrollToBottom() {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 清空日志显示
+        function clearLogDisplay() {
+            logContainer.innerHTML = '';
+        }
+        
+        // 初始化WebSocket连接
+        let socket;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        
+        // 创建WebSocket连接
+        function createSocketConnection() {
+            try {
+                appendLogEntry('[系统] 正在连接WebSocket服务器...', false);
+                
+                // 创建Socket.IO连接
+                socket = io('/logs', {
+                    transports: ['polling', 'websocket'],
+                    forceNew: reconnectAttempts > 0, // 重连时强制创建新连接
+                    timeout: 5000 // 连接超时时间
+                });
+                
+                // 连接事件
+                socket.on('connect', () => {
+                    reconnectAttempts = 0; // 重置重连计数
+                    appendLogEntry('[系统] WebSocket连接已建立，开始接收实时日志...', false);
+                    // 订阅特定客户端的日志
+                    socket.emit('subscribe', { client_id: '{{ client_id }}' });
+                });
+                
+                // 断开连接事件
+                socket.on('disconnect', (reason) => {
+                    appendLogEntry(`[系统] WebSocket连接已断开 (${reason})，停止接收实时日志...`, false);
+                    
+                    // 如果不是主动关闭，尝试重连
+                    if (reason === 'io server disconnect' || reason === 'transport close') {
+                        attemptReconnect();
+                    }
+                });
+                
+                // 错误处理
+                socket.on('connect_error', (error) => {
+                    console.error('连接错误:', error);
+                    appendLogEntry(`[系统] WebSocket连接错误: ${error.message}`, false);
+                    attemptReconnect();
+                });
+                
+                // 接收日志事件
+                socket.on('log_event', (data) => {
+                    if (data.client_id === '{{ client_id }}' && realtimeToggle.checked) {
+                        appendLogEntry(data.log_entry, true);
+                    }
+                });
+            } catch (e) {
+                console.error('创建WebSocket连接失败:', e);
+                appendLogEntry(`[系统] 创建WebSocket连接失败: ${e.message}`, false);
+                attemptReconnect();
+            }
+        }
+        
+        // 尝试重新连接
+        function attemptReconnect() {
+            if (reconnectAttempts >= maxReconnectAttempts) {
+                appendLogEntry('[系统] 达到最大重连次数，停止尝试连接。请刷新页面重试。', false);
+                return;
+            }
+            
+            reconnectAttempts++;
+            const delay = Math.min(reconnectAttempts * 2, 10) * 1000; // 指数退避策略
+            
+            appendLogEntry(`[系统] 将在 ${delay/1000} 秒后尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})...`, false);
+            
+            setTimeout(() => {
+                appendLogEntry(`[系统] 正在尝试第 ${reconnectAttempts} 次重连...`, false);
+                createSocketConnection();
+            }, delay);
+        }
+        
+        // 切换到HTTP轮询模式
+        function switchToPolling() {
+            clearInterval(pollingInterval);
+            
+            if (realtimeToggle.checked) {
+                appendLogEntry('[系统] WebSocket不可用，切换到HTTP轮询模式...', false);
+                
+                // 设置定期轮询
+                pollingInterval = setInterval(() => {
+                    if (realtimeToggle.checked) {
+                        loadLogHistory();
+                    }
+                }, 5000); // 每5秒轮询一次
+            }
+        }
+        
+        // 页面加载时获取历史日志
+        let pollingInterval;
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLogHistory();
+            createSocketConnection();
+            
+            // 如果5秒后WebSocket仍未连接，切换到轮询模式
+            setTimeout(() => {
+                if (!socket || !socket.connected) {
+                    switchToPolling();
+                }
+            }, 5000);
+            
+            // 实时更新切换
+            realtimeToggle.addEventListener('change', () => {
+                if (!realtimeToggle.checked) {
+                    clearInterval(pollingInterval);
+                } else if (!socket || !socket.connected) {
+                    switchToPolling();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

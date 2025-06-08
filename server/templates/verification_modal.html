@@ -1,0 +1,189 @@
+<!-- 验证弹窗 -->
+<div class="verification-modal" id="verificationModal">
+    <div class="verification-modal-content">
+        <span class="verification-modal-close" onclick="closeVerificationModal()">&times;</span>
+        <h4>请输入验证密钥</h4>
+        <p>这台设备需要进行合法使用验证，请输入在客户端电脑上生成的验证密钥</p>
+        <p>验证密钥文件位置: <strong>客户端运行目录/verification_key.txt</strong></p>
+        
+        <div class="verification-form">
+            <input type="text" id="verification-key-input" class="verification-input" placeholder="请输入验证密钥">
+            <button class="btn btn-primary w-100" onclick="submitVerificationKey()">验证</button>
+        </div>
+        
+        <div class="verification-result" id="verification-result">
+            <!-- 验证结果显示区域 -->
+        </div>
+        
+        <div class="mt-3">
+            <small class="text-muted">提示: 您只有 <span id="attempts-left">{{ verification_status.attempts_left }}</span> 次尝试机会，
+            验证失败将导致客户端停止工作并在对方电脑上显示警告</small>
+        </div>
+    </div>
+</div>
+
+<script>
+// 验证倒计时
+function updateVerificationCountdown() {
+    const countdownElement = document.getElementById('verification-countdown');
+    if (!countdownElement) return;
+    
+    const endTime = parseInt(countdownElement.getAttribute('data-end-time') || '0');
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = endTime - now;
+    
+    if (remaining <= 0) {
+        countdownElement.textContent = '已过期';
+        location.reload(); // 过期后刷新页面
+        return;
+    }
+    
+    // 计算剩余时间
+    const hours = Math.floor(remaining / 3600);
+    const minutes = Math.floor((remaining % 3600) / 60);
+    const seconds = remaining % 60;
+    
+    // 格式化显示
+    countdownElement.textContent = 
+        (hours > 0 ? hours + '小时' : '') + 
+        (minutes > 0 ? minutes + '分钟' : '') + 
+        seconds + '秒';
+    
+    // 每秒更新一次
+    setTimeout(updateVerificationCountdown, 1000);
+}
+
+function submitVerificationKey() {
+    const keyInput = document.getElementById('verification-key-input');
+    const resultDiv = document.getElementById('verification-result');
+    const attemptsSpan = document.getElementById('attempts-left');
+    
+    if (!keyInput.value.trim()) {
+        resultDiv.textContent = '请输入验证密钥';
+        resultDiv.className = 'verification-result error';
+        resultDiv.style.display = 'block';
+        return;
+    }
+    
+    // 显示加载状态
+    resultDiv.textContent = '正在验证...';
+    resultDiv.className = 'verification-result';
+    resultDiv.style.display = 'block';
+    
+    // 发送验证请求
+    fetch(`/api/verification/verify/{{ client_id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            key: keyInput.value.trim()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            // 验证请求已发送到客户端，但需等待客户端验证结果
+            resultDiv.textContent = "验证请求已发送，请等待结果...";
+            
+            // 获取命令ID并轮询检查结果
+            const commandId = data.command_id;
+            pollVerificationModalResult(commandId);
+        } else {
+            // 请求发送失败
+            resultDiv.textContent = data.message || "发送验证请求失败";
+            resultDiv.className = 'verification-result error';
+        }
+    })
+    .catch(error => {
+        resultDiv.textContent = `请求错误: ${error.message}`;
+        resultDiv.className = 'verification-result error';
+        resultDiv.style.display = 'block';
+    });
+}
+
+// 轮询验证结果
+function pollVerificationModalResult(commandId) {
+    let attempts = 0;
+    const maxAttempts = 15; // 最多尝试15次，每次1秒
+    const resultDiv = document.getElementById('verification-result');
+    const attemptsSpan = document.getElementById('attempts-left');
+    
+    function checkResult() {
+        attempts++;
+        
+        // 检查命令执行结果
+        fetch(`/api/verification/command/${commandId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // 检查命令状态
+                    if (data.command_status === "completed") {
+                        // 命令已完成，检查验证结果
+                        if (data.verification_status === "success") {
+                            // 验证成功
+                            resultDiv.textContent = '验证成功！页面将在3秒后刷新...';
+                            resultDiv.className = 'verification-result success';
+                            
+                            // 3秒后刷新页面
+                            setTimeout(() => {
+                                location.reload();
+                            }, 3000);
+                        } else {
+                            // 验证失败
+                            resultDiv.textContent = data.message || "验证失败";
+                            resultDiv.className = 'verification-result error';
+                            
+                            // 更新剩余尝试次数
+                            if (attemptsSpan && data.attempts_left !== undefined) {
+                                attemptsSpan.textContent = data.attempts_left;
+                            }
+                            
+                            // 如果尝试次数用完或过期，3秒后刷新页面
+                            if (data.attempts_left <= 0) {
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 3000);
+                            }
+                        }
+                    } else {
+                        // 命令还在执行中，继续轮询
+                        if (attempts < maxAttempts) {
+                            setTimeout(checkResult, 1000);
+                        } else {
+                            // 超时
+                            resultDiv.textContent = "验证请求超时，请重试";
+                            resultDiv.className = 'verification-result error';
+                        }
+                    }
+                } else {
+                    // API错误
+                    resultDiv.textContent = data.message || "检查验证结果失败";
+                    resultDiv.className = 'verification-result error';
+                }
+            })
+            .catch(error => {
+                // 网络错误
+                resultDiv.textContent = `检查验证结果错误: ${error.message}`;
+                resultDiv.className = 'verification-result error';
+            });
+    }
+    
+    // 开始轮询
+    setTimeout(checkResult, 1000);
+}
+
+// 初始化验证倒计时
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('verification-countdown')) {
+        updateVerificationCountdown();
+    }
+    
+    // 按Enter键提交验证
+    document.getElementById('verification-key-input')?.addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') {
+            submitVerificationKey();
+        }
+    });
+});
+</script> 

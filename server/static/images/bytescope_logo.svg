@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- 主要圆形背景 -->
+  <circle cx="100" cy="100" r="90" fill="#0d6efd" fill-opacity="0.1" stroke="#0d6efd" stroke-width="4"/>
+  
+  <!-- 字节"B"图标 -->
+  <path d="M70,50 L70,150 M70,50 C90,50 110,55 110,75 C110,95 90,100 70,100 M70,100 C90,100 115,105 115,125 C115,145 90,150 70,150" 
+        stroke="#0d6efd" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- 眼睛图标表示"窥探" -->
+  <circle cx="140" cy="100" r="25" fill="none" stroke="#212529" stroke-width="5"/>
+  <circle cx="140" cy="100" r="10" fill="#212529"/>
+  
+  <!-- 连接线 -->
+  <path d="M115,100 L125,100" stroke="#0d6efd" stroke-width="4" stroke-linecap="round"/>
+</svg> 
