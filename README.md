@@ -9,6 +9,7 @@
 [![Python](https://img.shields.io/badge/python-3.7+-green.svg)](https://python.org)
 [![Flask](https://img.shields.io/badge/flask-2.2+-red.svg)](https://flask.palletsprojects.com)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-lightgrey.svg)](https://github.com/xzajyb/bytescope)
+   ![网页预览](https://github.com/xzajyb/ByteScope/blob/main/P2.jpg)
 
 > 🔒 **注意**: 本开源项目仅包含服务器端代码。客户端和验证功能基于安全考虑不对外开源。（后续可能会）
 
