@@ -113,7 +113,7 @@ python run.py
 
 2. **首次向导配置**
    - 客户端首次启动会出现配置向导
-   - 在"服务器地址"输入框中粘贴第一步复制的IP地址
+   - 在"服务器地址"输入框中粘贴第一步复制的IP地址(服务器地址配置后续可以在客户端设置界面重新设置，方法：在客户端目录创建"设置.txt"文件重新客户端可重新打开设置界面)
    - 点击"确认"或"连接"按钮
 
 3. **连接成功**
@@ -659,7 +659,7 @@ Open browser and visit: `http://127.0.0.1:5000`
 
 2. **First-time Setup Wizard**
    - Client will show configuration wizard on first startup
-   - Paste the IP address from Step 1 into the "Server Address" input box
+   - Paste the IP address from Step 1 into the "Server Address" input box(The server address configuration can be reset in the client settings interface later, method: create a "设置.txt" file in the client directory and re-open the setting interface on the client side)
    - Click "Confirm" or "Connect" button
 
 3. **Connection Success**
