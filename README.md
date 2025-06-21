@@ -1,4 +1,4 @@
-# ByteScope 字节窥探 🔍
+# ByteScope 字节窥探 🔍    ![官网](https://mxos.top)
 
 <!-- Language Switch -->
 **Languages:** [🇨🇳 中文](#) | [🇺🇸 English](#english-version)
